@@ -1,23 +1,34 @@
-# serialization-sealedinterface-valueclass-runtime-error-sample
+# Serialization crash sample
 
-This project uses [Gradle](https://gradle.org/).
-To build and run the application, use the *Gradle* tool window by clicking the Gradle icon in the right-hand toolbar,
-or run it directly from the terminal:
+Value classes that inherit from sealed interfaces marked as @Serializable cannot be decoded and will crash.
+This is because the type of the sealed interface cannot be set during serialization.
 
-* Run `./gradlew run` to build and run the application.
-* Run `./gradlew build` to only build the application.
-* Run `./gradlew check` to run all checks, including tests.
-* Run `./gradlew clean` to clean all build outputs.
+```kt
+// SealedInterface.kt
+@Serializable
+sealed interface SealedInterface
 
-Note the usage of the Gradle Wrapper (`./gradlew`).
-This is the suggested way to use Gradle in production projects.
+@Serializable
+@JvmInline
+value class ValueClass(val value: String): SealedInterface
 
-[Learn more about the Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html).
+// App.kt
+val valueClass: ValueClass = ValueClass("value-class-value")
+println("valueClass: $valueClass")
 
-[Learn more about Gradle tasks](https://docs.gradle.org/current/userguide/command_line_interface.html#common_tasks).
+val valueClassString = Json.encodeToString(valueClass)
+println("  encoded: $valueClassString")
 
-This project follows the suggested multi-module setup and consists of the `app` and `utils` subprojects.
-The shared build logic was extracted to a convention plugin located in `buildSrc`.
+// 💥 will be runtime error !
+println("  decoded: ${Json.decodeFromString<SealedInterface>(valueClassString).let { it to it::class }}")
+```
 
-This project uses a version catalog (see `gradle/libs.versions.toml`) to declare and version dependencies
-and both a build cache and a configuration cache (see `gradle.properties`).
+For the full code, please refer to [app/src/main/kotlin](./app/src/main/kotlin).
+
+Since ValueClasses inheriting from SealedInterface are inherently impossible to deserialize, it may be necessary to treat this as a compile-time error.
+
+## Run this sample
+
+```shell
+./gradlew run
+```
